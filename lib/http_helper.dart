@@ -1,14 +1,12 @@
 import 'dart:convert';
-
 import 'package:http/http.dart' as http;
-import 'package:provider/provider.dart';
-
-import 'data_model.dart';
 
 final token = 'ba864153abe79aea3fa9b6509b25fd1354b50c2f';
 final url = 'http://192.168.100.12:8000/api';
 
+///set of useful function to communicate with the RESTApi
 class HttpHelper {
+  ///gets the list of fields used the build the form
   static Future<List<dynamic>> getFormFields() async {
     var response = await http.get(
       '$url/form/',
@@ -21,6 +19,7 @@ class HttpHelper {
     return fields;
   }
 
+  ///gets the last register of a bike in order to pre-fill the fields
   static Future<Map<String, dynamic>> getFormLastUpdate(String placa) async {
     var response = await http.get(
       '$url/last_update/$placa',
@@ -33,8 +32,8 @@ class HttpHelper {
     return data;
   }
 
-  static Future<bool> submitForm(
-      Map<String, dynamic> data, bool firstUpdate) async {
+  ///post a new register item using the data in the form
+  static Future<void> submitForm(Map<String, dynamic> data) async {
     var response = await http.post(
       '$url/registro/',
       headers: {
@@ -43,10 +42,10 @@ class HttpHelper {
       },
       body: jsonEncode(data),
     );
-    //print(response.body);
     return response.statusCode == 200;
   }
 
+  ///gets the list of stores used to select the current store
   static Future<List<dynamic>> getStores() async {
     var response = await http.get(
       '$url/tienda/',
@@ -58,6 +57,7 @@ class HttpHelper {
     return stores;
   }
 
+  ///get the list of bikes used to select the current bike
   static Future<List<dynamic>> getBikes(String store) async {
     var response = await http.get(
       '$url/bikes/$store',

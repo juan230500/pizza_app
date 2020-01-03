@@ -1,43 +1,24 @@
 import 'package:flutter/cupertino.dart';
-import 'package:provider/provider.dart';
 
 import 'http_helper.dart';
 
+///stores global variables of the app
 class DataModel extends ChangeNotifier {
   Map<String, dynamic> responses = {};
-  bool _firstUpdate = true;
-  String _currentStore = '';
-  String _currentBike = '';
+  Map<String, dynamic> currentStoreData;
+  Map<String, dynamic> currentBikeData;
 
+  ///sends a request to get the last register data of the current bike
   Future<void> updateForm() async {
     Map<String, dynamic> update =
-        await HttpHelper.getFormLastUpdate(currentBike);
+        await HttpHelper.getFormLastUpdate(currentBikeData['placa']);
     loadData(update['data']);
-    firstUpdate = update['first'];
-    print(responses);
   }
 
+  ///uses the new data as a map to fill the global responses
   void loadData(Map<String, dynamic> newData) {
     newData.forEach((k, v) {
       responses[k] = v;
     });
-  }
-
-  String get currentBike => _currentBike;
-
-  set currentBike(String value) {
-    _currentBike = value;
-  }
-
-  String get currentStore => _currentStore;
-
-  set currentStore(String value) {
-    _currentStore = value;
-  }
-
-  bool get firstUpdate => _firstUpdate;
-
-  set firstUpdate(bool value) {
-    _firstUpdate = value;
   }
 }

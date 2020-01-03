@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:pizza_app/components/bikes_row.dart';
+import 'package:pizza_app/components/stores_drawer.dart';
 import 'package:provider/provider.dart';
 import '../components/form_list.dart';
 import '../data_model.dart';
 import '../http_helper.dart';
 import 'bike_screen.dart';
 
+///main screen, stores the bikes, fields and stores data to pass it to other widget
 class FormScreen extends StatefulWidget {
   @override
   _FormScreenState createState() => _FormScreenState();
@@ -13,17 +16,19 @@ class FormScreen extends StatefulWidget {
 class _FormScreenState extends State<FormScreen> {
   List<dynamic> fields = [];
   List<dynamic> stores = [];
+  List<dynamic> bikes = [];
   bool loadingStores = true;
   bool waitingBike = true;
   bool loadingBike = true;
   String currentStore = 'Seleccione una tienda';
-  Map<String, dynamic> currentBikeData;
-  List<dynamic> bikes = [];
+  DataModel dataModel;
 
+  ///requests and saves the fields of a generic register
   Future<void> loadFields() async {
     fields = await HttpHelper.getFormFields();
   }
 
+  ///requests and saves the stores
   Future<void> loadStores() async {
     loadingStores = true;
     stores = await HttpHelper.getStores();
@@ -31,36 +36,7 @@ class _FormScreenState extends State<FormScreen> {
     setState(() {});
   }
 
-  Widget bikesRowBuilder(DataModel dataModel) {
-    List<Widget> bikeList = [];
-    for (int i = 0; i < bikes.length; i++) {
-      Widget newBike = GestureDetector(
-        onTap: () async {
-          currentBikeData = bikes[i];
-          dataModel.currentBike = currentBikeData['placa'];
-          dataModel.firstUpdate = true;
-          setState(() {
-            waitingBike = false;
-            loadingBike = true;
-          });
-          await dataModel.updateForm();
-          loadingBike = false;
-          setState(() {});
-        },
-        child: CircleAvatar(
-          child: Text('M$i'),
-        ),
-      );
-      bikeList.add(newBike);
-    }
-    return Card(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: bikeList,
-      ),
-    );
-  }
-
+  ///uses the flags to hide the form until bike is selected and loaded
   Widget formListValidated() {
     if (waitingBike)
       return Center(child: Text('Seleccione una moto'));
@@ -70,8 +46,52 @@ class _FormScreenState extends State<FormScreen> {
       return FormList(fields: fields);
   }
 
+  ///creates the bike screen if the bike is selected and loaded
+  void initBikeScreen() {
+    if (waitingBike || loadingBike) {
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BikeScreen(
+          data: dataModel.currentBikeData,
+        ),
+      ),
+    );
+  }
+
+  ///requests the initial form data for a bike and updates flags to show a message
+  Future<void> selectBike() async {
+    setState(() {
+      waitingBike = false;
+      loadingBike = true;
+    });
+    await dataModel.updateForm();
+    loadingBike = false;
+    setState(() {});
+  }
+
+  ///requests the bikes list of a selected store and updates appBar title
+  Future<void> selectStore(var store) async {
+    bikes = await HttpHelper.getBikes(store['codrest']);
+    setState(() {
+      currentStore = store['nombre'];
+      waitingBike = true;
+    });
+  }
+
+  Future<void> saveForm() async {
+    dataModel.responses['moto'] = dataModel.currentBikeData['placa'];
+    dataModel.responses['tienda'] = dataModel.currentStoreData['codrest'];
+    print(dataModel.responses);
+    await HttpHelper.submitForm(dataModel.responses);
+  }
+
+  ///loads the fields and the stores at the start
   @override
   void initState() {
+    dataModel = Provider.of<DataModel>(context, listen: false);
     loadFields();
     loadStores();
     super.initState();
@@ -79,26 +99,14 @@ class _FormScreenState extends State<FormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    DataModel dataModel = Provider.of<DataModel>(context, listen: false);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         actions: <Widget>[
           IconButton(
-              icon: Icon(Icons.motorcycle),
-              onPressed: () {
-                if (waitingBike || loadingBike) {
-                  return;
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BikeScreen(
-                      data: currentBikeData,
-                    ),
-                  ),
-                );
-              }),
+            icon: Icon(Icons.motorcycle),
+            onPressed: initBikeScreen,
+          ),
         ],
         leading: Builder(
           builder: (context) => IconButton(
@@ -110,40 +118,22 @@ class _FormScreenState extends State<FormScreen> {
       ),
       drawer: loadingStores
           ? null
-          : Drawer(
-              child: ListView.builder(
-              itemBuilder: (BuildContext context, int index) {
-                var store = stores[index];
-                return ListTile(
-                  leading: Icon(Icons.store),
-                  title: Text('${store['nombre']} - ${store['codrest']}'),
-                  onTap: () async {
-                    dataModel.currentStore = store['codrest'];
-                    bikes = await HttpHelper.getBikes(store['codrest']);
-                    Navigator.pop(context);
-                    setState(() {
-                      currentStore = store['nombre'];
-                      waitingBike = true;
-                    });
-                  },
-                );
-              },
-              itemCount: stores.length,
-            )),
+          : StoresDrawer(
+              stores: stores,
+              callbackFunction: selectStore,
+            ),
       body: Column(
         children: <Widget>[
-          bikesRowBuilder(dataModel),
+          BikesRow(
+            callbackFunction: selectBike,
+            bikes: bikes,
+          ),
           formListValidated(),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          dataModel.responses['moto'] = dataModel.currentBike;
-          dataModel.responses['tienda'] = dataModel.currentStore;
-          print(dataModel.responses);
-          bool valid = await HttpHelper.submitForm(
-              dataModel.responses, dataModel.firstUpdate);
-          if (valid) dataModel.firstUpdate = false;
+        onPressed: () {
+          saveForm();
         },
         child: Icon(Icons.save),
       ),

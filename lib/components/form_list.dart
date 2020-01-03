@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data_model.dart';
-import '../http_helper.dart';
 import 'form_item.dart';
 
+///ListView of form items, is generated from the fields
 class FormList extends StatelessWidget {
   const FormList({
     @required this.fields,
